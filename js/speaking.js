@@ -315,18 +315,29 @@ async function startRecording() {
     mediaRecorderInstance = null;
   }
 
+  var committedTranscript = '';
+  var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognitionInstance = new SR();
   recognitionInstance.lang = 'nl-NL';
-  recognitionInstance.continuous = true;
+  recognitionInstance.continuous = !isMobile;
   recognitionInstance.interimResults = true;
   recognitionInstance.onresult = (event) => {
-    let finalText = '';
-    for (let i = 0; i < event.results.length; i++) {
-      finalText += event.results[i][0].transcript;
+    var interimText = '';
+    var sessionFinal = '';
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        sessionFinal += event.results[i][0].transcript;
+      } else {
+        interimText += event.results[i][0].transcript;
+      }
     }
-    liveTranscript = finalText;
-    const liveEl = document.getElementById('speak-live-transcript');
+    if (sessionFinal) {
+      committedTranscript += sessionFinal;
+    }
+    liveTranscript = committedTranscript + interimText;
+    var liveEl = document.getElementById('speak-live-transcript');
     if (liveEl) liveEl.textContent = liveTranscript || '(luisteren...)';
   };
   recognitionInstance.onerror = (event) => {
@@ -335,7 +346,7 @@ async function startRecording() {
       if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') mediaRecorderInstance.stop();
       resetRecordingUI();
     }
-    const liveEl = document.getElementById('speak-live-transcript');
+    var liveEl = document.getElementById('speak-live-transcript');
     if (liveEl && event.error !== 'aborted') liveEl.textContent = '(spraakherkenning fout: ' + event.error + ')';
   };
   recognitionInstance.onend = () => {
