@@ -1480,9 +1480,9 @@ let currentQuiz = null; // { questions: [], index: 0, score: 0, answers: [] }
 function showView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + viewId).classList.add('active');
-  if (viewId === 'home') { renderHome(); renderSpeakHome(); }
+  if (viewId === 'home') { renderHome(); }
   if (viewId === 'select') renderSelect();
-  if (viewId === 'history') { renderHistory(); renderSpeakHistory(); }
+  if (viewId === 'history') { renderHistory(); }
   if (viewId === 'speak-select') renderSpeakSelect();
 }
 
