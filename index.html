@@ -767,17 +767,17 @@ body {
 <div class="modal-overlay" id="settings-modal">
   <div class="modal modal-wide">
     <h3>Instellingen — AI-analyse</h3>
-    <p>Voor het beoordelen van uw gesproken antwoorden wordt de Claude API van Anthropic gebruikt. Uw sleutel wordt alleen in deze browser opgeslagen (localStorage) en rechtstreeks vanuit uw browser naar Anthropic gestuurd — nooit naar een server van ons.</p>
-    <label for="settings-api-key">Anthropic API-sleutel</label>
-    <input type="password" id="settings-api-key" placeholder="sk-ant-...">
-    <p class="hint">Geen sleutel? Maak er een op <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">platform.claude.com/settings/keys</a>.</p>
+    <p>Voor het beoordelen van uw gesproken antwoorden wordt de OpenAI API gebruikt. Uw sleutel wordt alleen in deze browser opgeslagen (localStorage) en rechtstreeks vanuit uw browser naar OpenAI gestuurd — nooit naar een server van ons.</p>
+    <label for="settings-api-key">OpenAI API-sleutel</label>
+    <input type="password" id="settings-api-key" placeholder="sk-...">
+    <p class="hint">Geen sleutel? Maak er een op <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>.</p>
     <label for="settings-model">Model</label>
     <select id="settings-model">
-      <option value="claude-opus-5">Claude Opus 5 (beste kwaliteit, standaard)</option>
-      <option value="claude-sonnet-5">Claude Sonnet 5 (goedkoper)</option>
-      <option value="claude-haiku-4-5">Claude Haiku 4.5 (goedkoopst, sneller)</option>
+      <option value="gpt-4o">GPT-4o (standaard)</option>
+      <option value="gpt-4o-mini">GPT-4o mini (goedkoper)</option>
+      <option value="gpt-4.1-nano">GPT-4.1 nano (goedkoopst)</option>
     </select>
-    <p class="hint">Een volledige test van 30 vragen kost meestal minder dan €0,05, ook met Opus 5.</p>
+    <p class="hint">Een volledige test van 30 vragen kost meestal minder dan €0,01 met GPT-4o.</p>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="hideSettings()">Sluiten</button>
       <button class="btn btn-primary" onclick="saveSettings()">Opslaan</button>
@@ -2314,8 +2314,8 @@ function doSpeakQuit() {
 }
 
 // ---- Settings (API key / model) ----
-function getApiKey() { return localStorage.getItem('kns_speaking_api_key') || ''; }
-function getModel() { return localStorage.getItem('kns_speaking_model') || 'claude-opus-5'; }
+function getApiKey() { return localStorage.getItem('kns_speaking_openai_key') || ''; }
+function getModel() { return localStorage.getItem('kns_speaking_model') || 'gpt-4o'; }
 
 function openSettings() {
   document.getElementById('settings-api-key').value = getApiKey();
@@ -2326,7 +2326,7 @@ function hideSettings() { document.getElementById('settings-modal').classList.re
 function saveSettings() {
   const key = document.getElementById('settings-api-key').value.trim();
   const model = document.getElementById('settings-model').value;
-  localStorage.setItem('kns_speaking_api_key', key);
+  localStorage.setItem('kns_speaking_openai_key', key);
   localStorage.setItem('kns_speaking_model', model);
   hideSettings();
 }
@@ -2358,7 +2358,7 @@ const GRADING_SYSTEM_PROMPT = 'You are a Dutch-language examiner grading the "Sp
 
 const GRADE_CHUNK_SIZE = 25;
 
-async function callClaudeGrading(items) {
+async function callAIGrading(items) {
   const apiKey = getApiKey();
   const model = getModel();
   const payload = items.map((a, i) => ({
@@ -2368,20 +2368,26 @@ async function callClaudeGrading(items) {
     transcript: a.skipped ? '(geen antwoord / overgeslagen)' : a.transcript
   }));
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       model,
-      max_tokens: 4096,
-      system: GRADING_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: JSON.stringify(payload) }],
-      output_config: { format: { type: 'json_schema', schema: GRADING_SCHEMA } }
+      messages: [
+        { role: 'system', content: GRADING_SYSTEM_PROMPT },
+        { role: 'user', content: JSON.stringify(payload) }
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'grading',
+          strict: true,
+          schema: GRADING_SCHEMA
+        }
+      }
     })
   });
 
@@ -2395,8 +2401,7 @@ async function callClaudeGrading(items) {
   }
 
   const data = await response.json();
-  const textBlock = data.content.find(b => b.type === 'text');
-  const parsed = JSON.parse(textBlock.text);
+  const parsed = JSON.parse(data.choices[0].message.content);
   return parsed.results;
 }
 
@@ -2412,7 +2417,7 @@ async function finishSpeakQuiz() {
     document.getElementById('speak-results-loading').style.display = 'none';
     document.getElementById('speak-results-error').style.display = 'block';
     document.getElementById('speak-results-error').innerHTML = `
-      <div class="error-banner">U hebt nog geen AI-sleutel ingesteld. Ga naar instellingen (⚙️) om uw Anthropic API-sleutel toe te voegen.</div>
+      <div class="error-banner">U hebt nog geen AI-sleutel ingesteld. Ga naar instellingen (⚙️) om uw OpenAI API-sleutel toe te voegen.</div>
       <div style="text-align:center;"><button class="btn btn-primary" onclick="openSettings()">Instellingen openen</button> <button class="btn btn-secondary" onclick="showView('home')">Naar Home</button></div>
     `;
     return;
@@ -2429,7 +2434,7 @@ async function finishSpeakQuiz() {
     for (let c = 0; c < chunks.length; c++) {
       document.getElementById('speak-loading-text').textContent =
         chunks.length > 1 ? `Antwoorden worden geanalyseerd... (${c + 1}/${chunks.length})` : 'Antwoorden worden geanalyseerd door AI...';
-      const results = await callClaudeGrading(chunks[c]);
+      const results = await callAIGrading(chunks[c]);
       results.forEach(r => { allResults[c * GRADE_CHUNK_SIZE + r.index] = r; });
     }
   } catch (err) {
