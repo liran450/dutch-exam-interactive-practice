@@ -762,6 +762,7 @@ body {
           <button class="record-btn" id="speak-record-btn" onclick="toggleRecording()">🎙️</button>
           <div class="record-label" id="speak-record-label">Tik om te beginnen met opnemen</div>
           <div class="record-timer" id="speak-record-timer" style="display:none;">0:00</div>
+          <div id="speak-live-transcript" style="margin-top:8px;font-size:13px;color:var(--gray-500);min-height:20px;font-style:italic;"></div>
         </div>
 
         <div id="speak-transcript-ui" style="display:none;">
@@ -2297,12 +2298,21 @@ async function startRecording() {
       finalText += event.results[i][0].transcript;
     }
     liveTranscript = finalText;
+    const liveEl = document.getElementById('speak-live-transcript');
+    if (liveEl) liveEl.textContent = liveTranscript || '(luisteren...)';
   };
   recognitionInstance.onerror = (event) => {
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       alert('Microfoontoegang is geweigerd. Sta microfoongebruik toe in uw browserinstellingen.');
       if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') mediaRecorderInstance.stop();
       resetRecordingUI();
+    }
+    const liveEl = document.getElementById('speak-live-transcript');
+    if (liveEl && event.error !== 'aborted') liveEl.textContent = '(spraakherkenning fout: ' + event.error + ')';
+  };
+  recognitionInstance.onend = () => {
+    if (recordingState === 'recording') {
+      try { recognitionInstance.start(); } catch (e) {}
     }
   };
   try { recognitionInstance.start(); } catch (e) {}
