@@ -339,6 +339,8 @@ async function startRecording() {
     liveTranscript = committedTranscript + interimText;
     var liveEl = document.getElementById('speak-live-transcript');
     if (liveEl) liveEl.textContent = liveTranscript || '(luisteren...)';
+    var txEl = document.getElementById('speak-transcript');
+    if (txEl) txEl.value = liveTranscript;
   };
   recognitionInstance.onerror = (event) => {
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -350,6 +352,8 @@ async function startRecording() {
     if (liveEl && event.error !== 'aborted') liveEl.textContent = '(spraakherkenning fout: ' + event.error + ')';
   };
   recognitionInstance.onend = () => {
+    var txEl = document.getElementById('speak-transcript');
+    if (txEl && liveTranscript) txEl.value = liveTranscript;
     if (recordingState === 'recording') {
       try { recognitionInstance.start(); } catch (e) {}
     }
@@ -377,18 +381,16 @@ function stopRecording() {
   recordingState = 'recorded';
   clearInterval(recordTimerInterval);
 
+  document.getElementById('speak-record-ui').style.display = 'none';
+  document.getElementById('speak-transcript-ui').style.display = 'block';
+  document.getElementById('speak-transcript').value = liveTranscript.trim();
+
   if (recognitionInstance) {
     try { recognitionInstance.stop(); } catch (e) {}
   }
   if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') {
     mediaRecorderInstance.stop();
   }
-
-  document.getElementById('speak-record-ui').style.display = 'none';
-  document.getElementById('speak-transcript-ui').style.display = 'block';
-  setTimeout(() => {
-    document.getElementById('speak-transcript').value = liveTranscript.trim();
-  }, 300);
 }
 
 function redoRecording() {
