@@ -357,17 +357,18 @@ body {
 .modal .hint a { color: var(--orange); }
 
 /* Section tabs (Foto's / Spreken) */
-.section-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.section-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
 .section-tab {
   flex: 1;
-  padding: 12px;
+  padding: 10px 6px;
   border-radius: var(--radius);
   border: 2px solid var(--gray-200);
   background: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   color: var(--gray-600);
+  text-align: center;
 }
 .section-tab.active { border-color: var(--blue); background: var(--blue); color: white; }
 
@@ -490,7 +491,8 @@ body {
   <div class="view active" id="view-home">
     <div class="section-tabs">
       <button class="section-tab active" id="tab-photo" onclick="switchSection('photo')">📷 Foto's</button>
-      <button class="section-tab" id="tab-speaking" onclick="switchSection('speaking')">🗣️ Spreken</button>
+      <button class="section-tab" id="tab-qa" onclick="switchSection('qa')">🗣️ Vraag-Antwoord</button>
+      <button class="section-tab" id="tab-aanvul" onclick="switchSection('aanvul')">💬 Aanvulzinnen</button>
     </div>
 
     <div id="home-photo-section">
@@ -519,25 +521,51 @@ body {
       </div>
     </div>
 
-    <div id="home-speaking-section" style="display:none;">
-      <div class="stats-bar" id="speak-home-stats"></div>
+    <div id="home-qa-section" style="display:none;">
+      <div class="stats-bar" id="qa-home-stats"></div>
       <div class="mode-grid">
-        <div class="mode-card" onclick="startSpeakMode('full')">
+        <div class="mode-card" onclick="startSpeakMode('full','qa')">
           <div class="mode-icon">🗣️</div>
           <h3>Volledig Examen</h3>
-          <p>Alle 530 vragen op volgorde (78 vraag-antwoord + 452 aanvulzinnen). Dit duurt lang.</p>
+          <p>Alle 78 vraag-antwoord vragen op volgorde.</p>
         </div>
-        <div class="mode-card" onclick="startSpeakMode('random30')">
+        <div class="mode-card" onclick="startSpeakMode('random30','qa')">
           <div class="mode-icon">🎲</div>
           <h3>Willekeurig 30 Vragen</h3>
-          <p>30 willekeurige vragen uit de hele set.</p>
+          <p>30 willekeurige vragen uit de vraag-antwoord set.</p>
         </div>
-        <div class="mode-card" onclick="startSpeakMode('smart')">
+        <div class="mode-card" onclick="startSpeakMode('smart','qa')">
           <div class="mode-icon">🧠</div>
           <h3>Slimme Modus</h3>
           <p>Focus op vragen die u nog niet gezien hebt of fout had. 30 vragen, gewogen naar zwakte.</p>
         </div>
-        <div class="mode-card" onclick="showView('speak-select')">
+        <div class="mode-card" onclick="showSpeakSelect('qa')">
+          <div class="mode-icon">✅</div>
+          <h3>Selecteer Vragen</h3>
+          <p>Kies zelf welke vragen u wilt oefenen. Zie per vraag uw score.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="home-aanvul-section" style="display:none;">
+      <div class="stats-bar" id="aanvul-home-stats"></div>
+      <div class="mode-grid">
+        <div class="mode-card" onclick="startSpeakMode('full','aanvul')">
+          <div class="mode-icon">💬</div>
+          <h3>Volledig Examen</h3>
+          <p>Alle 452 aanvulzinnen op volgorde.</p>
+        </div>
+        <div class="mode-card" onclick="startSpeakMode('random30','aanvul')">
+          <div class="mode-icon">🎲</div>
+          <h3>Willekeurig 30 Vragen</h3>
+          <p>30 willekeurige vragen uit de aanvulzinnen.</p>
+        </div>
+        <div class="mode-card" onclick="startSpeakMode('smart','aanvul')">
+          <div class="mode-icon">🧠</div>
+          <h3>Slimme Modus</h3>
+          <p>Focus op vragen die u nog niet gezien hebt of fout had. 30 vragen, gewogen naar zwakte.</p>
+        </div>
+        <div class="mode-card" onclick="showSpeakSelect('aanvul')">
           <div class="mode-icon">✅</div>
           <h3>Selecteer Vragen</h3>
           <p>Kies zelf welke vragen u wilt oefenen. Zie per vraag uw score.</p>
@@ -610,7 +638,8 @@ body {
   <div class="view" id="view-history">
     <div class="section-tabs">
       <button class="section-tab active" id="htab-photo" onclick="switchHistorySection('photo')">📷 Foto's</button>
-      <button class="section-tab" id="htab-speaking" onclick="switchHistorySection('speaking')">🗣️ Spreken</button>
+      <button class="section-tab" id="htab-qa" onclick="switchHistorySection('qa')">🗣️ Vraag-Antwoord</button>
+      <button class="section-tab" id="htab-aanvul" onclick="switchHistorySection('aanvul')">💬 Aanvulzinnen</button>
     </div>
 
     <div id="history-photo-section">
@@ -638,28 +667,53 @@ body {
       </div>
     </div>
 
-    <div id="history-speaking-section" style="display:none;">
+    <div id="history-qa-section" style="display:none;">
       <div class="history-card">
         <h3>Overzicht per vraag</h3>
-        <div class="filter-tabs" id="speak-filter-tabs">
-          <button class="filter-tab active" data-filter="all" onclick="filterSpeakHistory('all',this)">Alles (530)</button>
-          <button class="filter-tab" data-filter="mastered" onclick="filterSpeakHistory('mastered',this)">Geleerd</button>
-          <button class="filter-tab" data-filter="learning" onclick="filterSpeakHistory('learning',this)">Bezig</button>
-          <button class="filter-tab" data-filter="weak" onclick="filterSpeakHistory('weak',this)">Zwak</button>
-          <button class="filter-tab" data-filter="unseen" onclick="filterSpeakHistory('unseen',this)">Niet gezien</button>
+        <div class="filter-tabs" id="qa-filter-tabs">
+          <button class="filter-tab active" data-filter="all" onclick="filterSpeakHistory('all',this,'qa')">Alles (78)</button>
+          <button class="filter-tab" data-filter="mastered" onclick="filterSpeakHistory('mastered',this,'qa')">Geleerd</button>
+          <button class="filter-tab" data-filter="learning" onclick="filterSpeakHistory('learning',this,'qa')">Bezig</button>
+          <button class="filter-tab" data-filter="weak" onclick="filterSpeakHistory('weak',this,'qa')">Zwak</button>
+          <button class="filter-tab" data-filter="unseen" onclick="filterSpeakHistory('unseen',this,'qa')">Niet gezien</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="history-table">
             <thead>
               <tr><th>#</th><th>Vraag</th><th>Goed</th><th>Fout</th><th>%</th><th>Status</th></tr>
             </thead>
-            <tbody id="speak-history-tbody"></tbody>
+            <tbody id="qa-history-tbody"></tbody>
           </table>
         </div>
       </div>
       <div class="history-card">
         <h3>Testgeschiedenis</h3>
-        <div id="speak-test-history-list"></div>
+        <div id="qa-test-history-list"></div>
+      </div>
+    </div>
+
+    <div id="history-aanvul-section" style="display:none;">
+      <div class="history-card">
+        <h3>Overzicht per vraag</h3>
+        <div class="filter-tabs" id="aanvul-filter-tabs">
+          <button class="filter-tab active" data-filter="all" onclick="filterSpeakHistory('all',this,'aanvul')">Alles (452)</button>
+          <button class="filter-tab" data-filter="mastered" onclick="filterSpeakHistory('mastered',this,'aanvul')">Geleerd</button>
+          <button class="filter-tab" data-filter="learning" onclick="filterSpeakHistory('learning',this,'aanvul')">Bezig</button>
+          <button class="filter-tab" data-filter="weak" onclick="filterSpeakHistory('weak',this,'aanvul')">Zwak</button>
+          <button class="filter-tab" data-filter="unseen" onclick="filterSpeakHistory('unseen',this,'aanvul')">Niet gezien</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="history-table">
+            <thead>
+              <tr><th>#</th><th>Vraag</th><th>Goed</th><th>Fout</th><th>%</th><th>Status</th></tr>
+            </thead>
+            <tbody id="aanvul-history-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="history-card">
+        <h3>Testgeschiedenis</h3>
+        <div id="aanvul-test-history-list"></div>
       </div>
     </div>
 
@@ -1894,19 +1948,25 @@ function escapeHtml(str) {
 }
 
 function switchSection(section) {
-  document.getElementById('tab-photo').classList.toggle('active', section === 'photo');
-  document.getElementById('tab-speaking').classList.toggle('active', section === 'speaking');
-  document.getElementById('home-photo-section').style.display = section === 'photo' ? '' : 'none';
-  document.getElementById('home-speaking-section').style.display = section === 'speaking' ? '' : 'none';
-  if (section === 'speaking') renderSpeakHome();
+  ['photo', 'qa', 'aanvul'].forEach(s => {
+    const tab = document.getElementById('tab-' + s);
+    if (tab) tab.classList.toggle('active', section === s);
+    const sec = document.getElementById('home-' + s + '-section');
+    if (sec) sec.style.display = section === s ? '' : 'none';
+  });
+  if (section === 'qa') renderSpeakHome('qa');
+  if (section === 'aanvul') renderSpeakHome('aanvul');
 }
 
 function switchHistorySection(section) {
-  document.getElementById('htab-photo').classList.toggle('active', section === 'photo');
-  document.getElementById('htab-speaking').classList.toggle('active', section === 'speaking');
-  document.getElementById('history-photo-section').style.display = section === 'photo' ? '' : 'none';
-  document.getElementById('history-speaking-section').style.display = section === 'speaking' ? '' : 'none';
-  if (section === 'speaking') renderSpeakHistory();
+  ['photo', 'qa', 'aanvul'].forEach(s => {
+    const tab = document.getElementById('htab-' + s);
+    if (tab) tab.classList.toggle('active', section === s);
+    const sec = document.getElementById('history-' + s + '-section');
+    if (sec) sec.style.display = section === s ? '' : 'none';
+  });
+  if (section === 'qa') renderSpeakHistory('qa');
+  if (section === 'aanvul') renderSpeakHistory('aanvul');
 }
 
 // ---- Speak storage ----
@@ -1952,9 +2012,11 @@ function getSpeakQuestionStatus(qId) {
 }
 
 // ---- Speak home stats ----
-function renderSpeakHome() {
-  const stats = computeSpeakOverallStats();
-  document.getElementById('speak-home-stats').innerHTML = `
+function renderSpeakHome(type) {
+  const stats = computeSpeakOverallStats(type);
+  const el = document.getElementById(type + '-home-stats');
+  if (!el) return;
+  el.innerHTML = `
     <div class="stat-item"><div class="stat-value">${stats.seen}</div><div class="stat-label">Gezien</div></div>
     <div class="stat-item"><div class="stat-value">${stats.mastered}</div><div class="stat-label">Geleerd</div></div>
     <div class="stat-item"><div class="stat-value">${stats.weak}</div><div class="stat-label">Zwak</div></div>
@@ -1962,9 +2024,10 @@ function renderSpeakHome() {
   `;
 }
 
-function computeSpeakOverallStats() {
+function computeSpeakOverallStats(type) {
+  const pool = type ? SPEAKING_QUESTIONS.filter(q => q.type === type) : SPEAKING_QUESTIONS;
   let seen = 0, mastered = 0, weak = 0, totalCorrect = 0, totalAttempts = 0;
-  SPEAKING_QUESTIONS.forEach(q => {
+  pool.forEach(q => {
     const status = getSpeakQuestionStatus(q.id);
     const s = speakData.questionStats[q.id];
     if (s && (s.correct + s.wrong) > 0) {
@@ -1980,21 +2043,23 @@ function computeSpeakOverallStats() {
 }
 
 // ---- Speak modes ----
-function startSpeakMode(mode) {
+function startSpeakMode(mode, type) {
+  const pool = type ? SPEAKING_QUESTIONS.filter(q => q.type === type) : SPEAKING_QUESTIONS;
   let questions = [];
   if (mode === 'full') {
-    questions = [...SPEAKING_QUESTIONS];
+    questions = [...pool];
   } else if (mode === 'random30') {
-    questions = shuffleArray([...SPEAKING_QUESTIONS]).slice(0, 30);
+    questions = shuffleArray([...pool]).slice(0, 30);
   } else if (mode === 'smart') {
-    questions = getSpeakSmartQuestions(30);
+    questions = getSpeakSmartQuestions(30, type);
   }
   startSpeakQuiz(questions);
 }
 
-function getSpeakSmartQuestions(count) {
+function getSpeakSmartQuestions(count, type) {
+  const pool = type ? SPEAKING_QUESTIONS.filter(q => q.type === type) : SPEAKING_QUESTIONS;
   const weights = { unseen: 10, weak: 8, learning: 3, mastered: 1 };
-  const weighted = SPEAKING_QUESTIONS.map(q => ({
+  const weighted = pool.map(q => ({
     question: q,
     weight: weights[getSpeakQuestionStatus(q.id)] || 5
   }));
@@ -2018,10 +2083,14 @@ function getSpeakSmartQuestions(count) {
 let selectedSpeaking = new Set();
 let speakSelectTypeFilter = 'all';
 
+function showSpeakSelect(type) {
+  speakSelectTypeFilter = type || 'all';
+  showView('speak-select');
+}
+
 function renderSpeakSelect() {
   selectedSpeaking = new Set();
-  speakSelectTypeFilter = 'all';
-  document.querySelectorAll('#speak-select-type-tabs .filter-tab').forEach(t => t.classList.toggle('active', t.dataset.type === 'all'));
+  document.querySelectorAll('#speak-select-type-tabs .filter-tab').forEach(t => t.classList.toggle('active', t.dataset.type === speakSelectTypeFilter));
   renderSpeakSelectList();
   updateSpeakSelectCount();
 }
@@ -2070,7 +2139,8 @@ function selectSpeakNone() {
 
 function selectSpeakWeak() {
   selectedSpeaking.clear();
-  SPEAKING_QUESTIONS.forEach(q => {
+  const pool = SPEAKING_QUESTIONS.filter(q => speakSelectTypeFilter === 'all' || q.type === speakSelectTypeFilter);
+  pool.forEach(q => {
     const s = getSpeakQuestionStatus(q.id);
     if (s === 'weak' || s === 'learning') selectedSpeaking.add(q.id);
   });
@@ -2080,7 +2150,8 @@ function selectSpeakWeak() {
 
 function selectSpeakUnseen() {
   selectedSpeaking.clear();
-  SPEAKING_QUESTIONS.forEach(q => {
+  const pool = SPEAKING_QUESTIONS.filter(q => speakSelectTypeFilter === 'all' || q.type === speakSelectTypeFilter);
+  pool.forEach(q => {
     if (getSpeakQuestionStatus(q.id) === 'unseen') selectedSpeaking.add(q.id);
   });
   renderSpeakSelectList();
@@ -2515,28 +2586,29 @@ function renderSpeakResults(answers, results) {
 }
 
 // ---- Speak history ----
-let speakCurrentFilter = 'all';
+function renderSpeakHistory(type) {
+  const tabsId = type + '-filter-tabs';
+  filterSpeakHistory('all', document.querySelector('#' + tabsId + ' [data-filter="all"]'), type);
+  renderSpeakTestHistory(type);
 
-function renderSpeakHistory() {
-  filterSpeakHistory('all', document.querySelector('#speak-filter-tabs [data-filter="all"]'));
-  renderSpeakTestHistory();
-
-  const counts = { all: SPEAKING_QUESTIONS.length, mastered: 0, learning: 0, weak: 0, unseen: 0 };
-  SPEAKING_QUESTIONS.forEach(q => { counts[getSpeakQuestionStatus(q.id)]++; });
-  document.querySelectorAll('#speak-filter-tabs .filter-tab').forEach(tab => {
+  const pool = SPEAKING_QUESTIONS.filter(q => q.type === type);
+  const counts = { all: pool.length, mastered: 0, learning: 0, weak: 0, unseen: 0 };
+  pool.forEach(q => { counts[getSpeakQuestionStatus(q.id)]++; });
+  document.querySelectorAll('#' + tabsId + ' .filter-tab').forEach(tab => {
     const f = tab.dataset.filter;
     if (f !== 'all') tab.textContent = `${f === 'mastered' ? 'Geleerd' : f === 'learning' ? 'Bezig' : f === 'weak' ? 'Zwak' : 'Niet gezien'} (${counts[f]})`;
-    else tab.textContent = `Alles (${SPEAKING_QUESTIONS.length})`;
+    else tab.textContent = `Alles (${pool.length})`;
   });
 }
 
-function filterSpeakHistory(filter, btn) {
-  speakCurrentFilter = filter;
-  document.querySelectorAll('#speak-filter-tabs .filter-tab').forEach(t => t.classList.remove('active'));
+function filterSpeakHistory(filter, btn, type) {
+  const tabsId = type + '-filter-tabs';
+  document.querySelectorAll('#' + tabsId + ' .filter-tab').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
 
-  const tbody = document.getElementById('speak-history-tbody');
-  const rows = SPEAKING_QUESTIONS
+  const pool = SPEAKING_QUESTIONS.filter(q => q.type === type);
+  const tbody = document.getElementById(type + '-history-tbody');
+  const rows = pool
     .filter(q => filter === 'all' || getSpeakQuestionStatus(q.id) === filter)
     .map(q => {
       const s = speakData.questionStats[q.id] || { correct: 0, wrong: 0 };
@@ -2558,8 +2630,8 @@ function filterSpeakHistory(filter, btn) {
   tbody.innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:20px;">Geen vragen in deze categorie</td></tr>';
 }
 
-function renderSpeakTestHistory() {
-  const list = document.getElementById('speak-test-history-list');
+function renderSpeakTestHistory(type) {
+  const list = document.getElementById(type + '-test-history-list');
   if (speakData.testHistory.length === 0) {
     list.innerHTML = '<p style="color:var(--gray-400);font-size:13px;">Nog geen tests gemaakt.</p>';
     return;
@@ -2577,7 +2649,6 @@ function renderSpeakTestHistory() {
 
 // ======== INIT ========
 renderHome();
-renderSpeakHome();
 </script>
 </body>
 </html>
