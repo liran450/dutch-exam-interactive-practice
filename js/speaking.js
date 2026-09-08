@@ -211,7 +211,12 @@ var currentAudioUrl = null;
 
 // ======== WHISPER (client-side transcription via Transformers.js) ========
 const WHISPER_MODEL_ID = 'onnx-community/whisper-base';
-const TRANSFORMERS_JS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+// Pinned to 3.8.1 (bundles onnxruntime-web 1.22) rather than the 4.x line (onnxruntime-web
+// 1.26+): the newer onnxruntime-web ships a QDQ->MatMulNBits graph optimizer that the
+// legacy int8 export of this model is incompatible with, and fails session creation with
+// "Missing required scale ... weight_merged_0_scale" regardless of which sub-model dtype
+// is requested. See https://github.com/huggingface/transformers.js/issues/1707
+const TRANSFORMERS_JS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 var asrPipelinePromise = null;
 
 function getASRPipeline(onProgress) {
