@@ -218,7 +218,14 @@ function getASRPipeline(onProgress) {
   if (!asrPipelinePromise) {
     asrPipelinePromise = import(TRANSFORMERS_JS_URL).then(({ pipeline }) =>
       pipeline('automatic-speech-recognition', WHISPER_MODEL_ID, {
-        dtype: 'q8',
+        // Force int8 for both sub-models explicitly. A bare `dtype: 'q8'` string
+        // let the decoder fall back to its 4-bit ("q4") export, which is broken for
+        // this repo (missing a scale tensor for the embed_tokens weight -> onnxruntime-web
+        // throws "Missing required scale ... weight_merged_0_scale" when creating the session).
+        dtype: {
+          encoder_model: 'q8',
+          decoder_model_merged: 'q8'
+        },
         progress_callback: onProgress
       })
     );
