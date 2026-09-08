@@ -341,25 +341,23 @@ async function startRecording() {
   };
   try { recognitionInstance.start(); } catch (e) {}
 
-  if (!isMobile) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderInstance = new MediaRecorder(stream);
-      mediaRecorderInstance.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-      mediaRecorderInstance.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        if (recordedChunks.length > 0) {
-          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-          currentAudioUrl = URL.createObjectURL(blob);
-          const audioEl = document.getElementById('speak-audio-playback');
-          audioEl.src = currentAudioUrl;
-          audioEl.style.display = 'block';
-        }
-      };
-      mediaRecorderInstance.start();
-    } catch (e) {
-      mediaRecorderInstance = null;
-    }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorderInstance = new MediaRecorder(stream);
+    mediaRecorderInstance.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorderInstance.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      if (recordedChunks.length > 0) {
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        currentAudioUrl = URL.createObjectURL(blob);
+        const audioEl = document.getElementById('speak-audio-playback');
+        audioEl.src = currentAudioUrl;
+        audioEl.style.display = 'block';
+      }
+    };
+    mediaRecorderInstance.start();
+  } catch (e) {
+    mediaRecorderInstance = null;
   }
 
   recordingState = 'recording';
