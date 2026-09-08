@@ -211,21 +211,19 @@ var currentAudioUrl = null;
 
 // ======== WHISPER (client-side transcription via Transformers.js) ========
 const WHISPER_MODEL_ID = 'onnx-community/whisper-base';
-const TRANSFORMERS_JS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+// Pinned to 3.8.1 (bundles onnxruntime-web 1.22) rather than the 4.x line (onnxruntime-web
+// 1.26+): the newer onnxruntime-web ships a QDQ->MatMulNBits graph optimizer that the
+// legacy int8 export of this model is incompatible with, and fails session creation with
+// "Missing required scale ... weight_merged_0_scale" regardless of which sub-model dtype
+// is requested. See https://github.com/huggingface/transformers.js/issues/1707
+const TRANSFORMERS_JS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 var asrPipelinePromise = null;
 
 function getASRPipeline(onProgress) {
   if (!asrPipelinePromise) {
     asrPipelinePromise = import(TRANSFORMERS_JS_URL).then(({ pipeline }) =>
       pipeline('automatic-speech-recognition', WHISPER_MODEL_ID, {
-        // Force int8 for both sub-models explicitly. A bare `dtype: 'q8'` string
-        // let the decoder fall back to its 4-bit ("q4") export, which is broken for
-        // this repo (missing a scale tensor for the embed_tokens weight -> onnxruntime-web
-        // throws "Missing required scale ... weight_merged_0_scale" when creating the session).
-        dtype: {
-          encoder_model: 'q8',
-          decoder_model_merged: 'q8'
-        },
+        dtype: 'q8',
         progress_callback: onProgress
       })
     );
