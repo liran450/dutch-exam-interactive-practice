@@ -201,15 +201,73 @@ function startSpeakSelected() {
 
 // ======== SPEAK QUIZ ENGINE ========
 var speakQuiz = null;
-const recognitionSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+const recordingSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 var mediaRecorderInstance = null;
-var recognitionInstance = null;
 var recordedChunks = [];
 var recordingState = 'idle';
 var recordTimerInterval = null;
 var recordStartTime = null;
-var liveTranscript = '';
 var currentAudioUrl = null;
+
+// ======== WHISPER (client-side transcription via Transformers.js) ========
+const WHISPER_MODEL_ID = 'onnx-community/whisper-base';
+const TRANSFORMERS_JS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+var asrPipelinePromise = null;
+
+function getASRPipeline(onProgress) {
+  if (!asrPipelinePromise) {
+    asrPipelinePromise = import(TRANSFORMERS_JS_URL).then(({ pipeline }) =>
+      pipeline('automatic-speech-recognition', WHISPER_MODEL_ID, {
+        dtype: 'q8',
+        progress_callback: onProgress
+      })
+    );
+  }
+  return asrPipelinePromise;
+}
+
+async function decodeAudioTo16kMono(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  var audioCtx;
+  try {
+    audioCtx = new AudioCtx({ sampleRate: 16000 });
+  } catch (e) {
+    audioCtx = new AudioCtx();
+  }
+  const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+  const channelData = decoded.getChannelData(0);
+  const pcm = decoded.sampleRate === 16000 ? channelData : resampleTo16k(channelData, decoded.sampleRate);
+  audioCtx.close();
+  return pcm;
+}
+
+function resampleTo16k(samples, fromRate) {
+  const ratio = fromRate / 16000;
+  const newLength = Math.round(samples.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const srcIndex = i * ratio;
+    const i0 = Math.floor(srcIndex);
+    const i1 = Math.min(i0 + 1, samples.length - 1);
+    const frac = srcIndex - i0;
+    result[i] = samples[i0] * (1 - frac) + samples[i1] * frac;
+  }
+  return result;
+}
+
+async function transcribeWithWhisper(pcm) {
+  const statusEl = document.getElementById('speak-transcribing-text');
+  const transcriber = await getASRPipeline((progress) => {
+    if (statusEl && progress.status === 'progress' && progress.file) {
+      const pct = Math.round(progress.progress || 0);
+      statusEl.textContent = `Spraakmodel wordt gedownload (eenmalig, ~75MB)... ${pct}%`;
+    }
+  });
+  if (statusEl) statusEl.textContent = 'Antwoord wordt getranscribeerd...';
+  const output = await transcriber(pcm, { language: 'dutch', task: 'transcribe' });
+  return (output && output.text) || '';
+}
 
 var dutchVoice = null;
 function pickDutchVoice() {
@@ -255,7 +313,6 @@ function renderSpeakQuestion() {
 
 function resetRecordingUI() {
   recordingState = 'idle';
-  liveTranscript = '';
   recordedChunks = [];
   if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = null; }
   document.getElementById('speak-transcript').value = '';
@@ -265,10 +322,12 @@ function resetRecordingUI() {
   audioEl.src = '';
 
   const recordUi = document.getElementById('speak-record-ui');
+  const transcribingUi = document.getElementById('speak-transcribing-ui');
   const transcriptUi = document.getElementById('speak-transcript-ui');
   const notypeUi = document.getElementById('speak-notype-ui');
+  transcribingUi.style.display = 'none';
 
-  if (!recognitionSupported) {
+  if (!recordingSupported) {
     recordUi.style.display = 'none';
     transcriptUi.style.display = 'none';
     notypeUi.style.display = 'block';
@@ -293,72 +352,23 @@ async function toggleRecording() {
 }
 
 async function startRecording() {
-  liveTranscript = '';
   recordedChunks = [];
 
-  var committedTranscript = '';
-  var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognitionInstance = new SR();
-  recognitionInstance.lang = 'nl-NL';
-  recognitionInstance.continuous = !isMobile;
-  recognitionInstance.interimResults = true;
-  recognitionInstance.onresult = (event) => {
-    var interimText = '';
-    var sessionFinal = '';
-    for (var i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        sessionFinal += event.results[i][0].transcript;
-      } else {
-        interimText += event.results[i][0].transcript;
-      }
-    }
-    if (sessionFinal) {
-      committedTranscript += sessionFinal;
-    }
-    liveTranscript = committedTranscript + interimText;
-    var liveEl = document.getElementById('speak-live-transcript');
-    if (liveEl) liveEl.textContent = liveTranscript || '(luisteren...)';
-    var txEl = document.getElementById('speak-transcript');
-    if (txEl) txEl.value = liveTranscript;
-  };
-  recognitionInstance.onerror = (event) => {
-    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-      alert('Microfoontoegang is geweigerd. Sta microfoongebruik toe in uw browserinstellingen.');
-      if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') mediaRecorderInstance.stop();
-      resetRecordingUI();
-    }
-    var liveEl = document.getElementById('speak-live-transcript');
-    if (liveEl && event.error !== 'aborted') liveEl.textContent = '(spraakherkenning fout: ' + event.error + ')';
-  };
-  recognitionInstance.onend = () => {
-    var txEl = document.getElementById('speak-transcript');
-    if (txEl && liveTranscript) txEl.value = liveTranscript;
-    if (recordingState === 'recording') {
-      try { recognitionInstance.start(); } catch (e) {}
-    }
-  };
-  try { recognitionInstance.start(); } catch (e) {}
-
+  var stream;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorderInstance = new MediaRecorder(stream);
-    mediaRecorderInstance.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorderInstance.onstop = () => {
-      stream.getTracks().forEach(t => t.stop());
-      if (recordedChunks.length > 0) {
-        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-        currentAudioUrl = URL.createObjectURL(blob);
-        const audioEl = document.getElementById('speak-audio-playback');
-        audioEl.src = currentAudioUrl;
-        audioEl.style.display = 'block';
-      }
-    };
-    mediaRecorderInstance.start();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    mediaRecorderInstance = null;
+    alert('Microfoontoegang is geweigerd. Sta microfoongebruik toe in uw browserinstellingen.');
+    return;
   }
+
+  mediaRecorderInstance = new MediaRecorder(stream);
+  mediaRecorderInstance.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorderInstance.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    handleRecordingStopped();
+  };
+  mediaRecorderInstance.start();
 
   recordingState = 'recording';
   recordStartTime = Date.now();
@@ -378,19 +388,40 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  recordingState = 'recorded';
+  recordingState = 'transcribing';
   clearInterval(recordTimerInterval);
 
   document.getElementById('speak-record-ui').style.display = 'none';
-  document.getElementById('speak-transcript-ui').style.display = 'block';
-  document.getElementById('speak-transcript').value = liveTranscript.trim();
+  document.getElementById('speak-transcribing-text').textContent = 'Antwoord wordt getranscribeerd...';
+  document.getElementById('speak-transcribing-ui').style.display = 'block';
 
-  if (recognitionInstance) {
-    try { recognitionInstance.stop(); } catch (e) {}
-  }
   if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') {
     mediaRecorderInstance.stop();
   }
+}
+
+async function handleRecordingStopped() {
+  var transcript = '';
+
+  if (recordedChunks.length > 0) {
+    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+    currentAudioUrl = URL.createObjectURL(blob);
+    const audioEl = document.getElementById('speak-audio-playback');
+    audioEl.src = currentAudioUrl;
+    audioEl.style.display = 'block';
+
+    try {
+      const pcm = await decodeAudioTo16kMono(blob);
+      transcript = await transcribeWithWhisper(pcm);
+    } catch (e) {
+      console.error('Whisper transcriptie mislukt:', e);
+    }
+  }
+
+  recordingState = 'recorded';
+  document.getElementById('speak-transcribing-ui').style.display = 'none';
+  document.getElementById('speak-transcript-ui').style.display = 'block';
+  document.getElementById('speak-transcript').value = transcript.trim();
 }
 
 function redoRecording() {

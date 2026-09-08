@@ -300,7 +300,11 @@
           <button class="record-btn" id="speak-record-btn" onclick="toggleRecording()">🎙️</button>
           <div class="record-label" id="speak-record-label">Tik om te beginnen met opnemen</div>
           <div class="record-timer" id="speak-record-timer" style="display:none;">0:00</div>
-          <div id="speak-live-transcript" style="margin-top:8px;font-size:13px;color:var(--gray-500);min-height:20px;font-style:italic;"></div>
+        </div>
+
+        <div id="speak-transcribing-ui" class="spinner-wrap" style="display:none;">
+          <div class="spinner"></div>
+          <p id="speak-transcribing-text">Antwoord wordt getranscribeerd...</p>
         </div>
 
         <div id="speak-transcript-ui" style="display:none;">
@@ -314,7 +318,7 @@
         </div>
 
         <div id="speak-notype-ui" style="display:none;">
-          <div class="transcript-label">Typ uw antwoord (spraakherkenning niet beschikbaar in deze browser):</div>
+          <div class="transcript-label">Typ uw antwoord (opnemen is niet beschikbaar in deze browser):</div>
           <textarea class="transcript-box" id="speak-typed-answer" placeholder="Typ hier uw antwoord in het Nederlands..."></textarea>
           <div class="record-actions">
             <button class="btn btn-primary" onclick="submitTypedAnswer()">Volgende →</button>
