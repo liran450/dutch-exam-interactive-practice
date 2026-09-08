@@ -320,6 +320,7 @@ function resetRecordingUI() {
   const audioEl = document.getElementById('speak-audio-playback');
   audioEl.style.display = 'none';
   audioEl.src = '';
+  document.getElementById('speak-transcribe-error').style.display = 'none';
 
   const recordUi = document.getElementById('speak-record-ui');
   const transcribingUi = document.getElementById('speak-transcribing-ui');
@@ -402,6 +403,7 @@ function stopRecording() {
 
 async function handleRecordingStopped() {
   var transcript = '';
+  var transcribeError = null;
 
   if (recordedChunks.length > 0) {
     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
@@ -412,9 +414,12 @@ async function handleRecordingStopped() {
 
     try {
       const pcm = await decodeAudioTo16kMono(blob);
+      console.log('[whisper] decoded PCM samples:', pcm.length, '(~' + (pcm.length / 16000).toFixed(1) + 's)');
       transcript = await transcribeWithWhisper(pcm);
+      console.log('[whisper] raw output text:', JSON.stringify(transcript));
     } catch (e) {
       console.error('Whisper transcriptie mislukt:', e);
+      transcribeError = (e && e.message) ? e.message : String(e);
     }
   }
 
@@ -422,6 +427,17 @@ async function handleRecordingStopped() {
   document.getElementById('speak-transcribing-ui').style.display = 'none';
   document.getElementById('speak-transcript-ui').style.display = 'block';
   document.getElementById('speak-transcript').value = transcript.trim();
+
+  const errEl = document.getElementById('speak-transcribe-error');
+  if (transcribeError) {
+    errEl.textContent = `Automatische transcriptie mislukt: ${transcribeError}. Typ uw antwoord handmatig of neem opnieuw op.`;
+    errEl.style.display = 'block';
+  } else if (!transcript.trim()) {
+    errEl.textContent = 'Geen spraak herkend in de opname. Typ uw antwoord handmatig of neem opnieuw op.';
+    errEl.style.display = 'block';
+  } else {
+    errEl.style.display = 'none';
+  }
 }
 
 function redoRecording() {
